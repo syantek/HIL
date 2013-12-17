@@ -113,8 +113,10 @@ class SensorHIL(object):
             gcs = mavutil.mavudp(gcs_dev, input=False)
             print 'gcs connected on device: ', gcs_dev
         if extra:
-            if type(extra) != int:
-                raise TypeError "extraOut must be type int or NONE"
+            try:
+                extra = int(extra)
+            except:
+                raise TypeError("extraOut must be int or NONE")
             extra_out = mavutil.mavudp(gcs_dev, input=False,
                                        source_system=extra)
             print 'Unmodified sensor output connected on device: ',\
