@@ -38,16 +38,17 @@ class SensorHIL(object):
         parser.add_argument('--gcs', help='gcs host', default='localhost:14550')
         parser.add_argument('--waypoints', help='waypoints file', default='data/sf_waypoints.txt')
         parser.add_argument('--mode', help="hil mode (sensor or state)", default='sensor')
+        parser.add_argument('--extraOut', help="output noiseless sensor data to GCS as a vehicle with ID equal to this argument's value, if it is not None. Argument must be an int 1-255 or NONE. Only useful in sensor mode", default=None)
         parser.add_argument('--fgout', help="flight gear output", default=None)
         args = parser.parse_args()
         if args.master is None:
             raise IOError('must specify device with --dev')
         if args.mode not in ['sensor','state']:
             raise IOError('mode must be sensor or state')
-        inst = cls(master_dev=args.master, baudrate=args.baud, script=args.script, options=args.options, gcs_dev=args.gcs, waypoints=args.waypoints, mode = args.mode, fgout=args.fgout)
+        inst = cls(master_dev=args.master, baudrate=args.baud, script=args.script, options=args.options, gcs_dev=args.gcs, waypoints=args.waypoints, mode = args.mode, extra=args.extraOut, fgout=args.fgout)
         inst.run()
 
-    def __init__(self, master_dev, baudrate, script, options, gcs_dev, waypoints, mode, fgout):
+    def __init__(self, master_dev, baudrate, script, options, gcs_dev, waypoints, mode, extra, fgout):
         ''' default ctor 
         @param dev device
         @param baud baudrate
@@ -65,6 +66,7 @@ class SensorHIL(object):
 
 
         self.gcs = None
+        self.extra_out = None
         self.master = None
 
         self.counts = {}
@@ -79,7 +81,7 @@ class SensorHIL(object):
                 proc.kill()
 
         #self.init_jsbsim()
-        self.init_mavlink(master_dev, gcs_dev, baudrate)
+        self.init_mavlink(master_dev, gcs_dev, extra, baudrate)
         self.wpm = gcs.WaypointManager(self.master)
 
         self.fg_out = None
@@ -100,7 +102,7 @@ class SensorHIL(object):
             self.jsb.close(force=True)
         util.pexpect_close_all()
 
-    def init_mavlink(self, master_dev, gcs_dev, baudrate):
+    def init_mavlink(self, master_dev, gcs_dev, extra, baudrate):
 
         # master
         master = mavutil.mavserial(master_dev, baud=baudrate, autoreconnect=True)
@@ -110,10 +112,19 @@ class SensorHIL(object):
         if gcs_dev is not None:
             gcs = mavutil.mavudp(gcs_dev, input=False)
             print 'gcs connected on device: ', gcs_dev
+        if extra:
+            if type(extra) != int:
+                raise TypeError "extraOut must be type int or NONE"
+            extra_out = mavutil.mavudp(gcs_dev, input=False,
+                                       source_system=extra)
+            print 'Unmodified sensor output connected on device: ',\
+                   gcs_dev, ' with vehicle ID ', extra
+
 
         # class data
         self.master = master
         self.gcs = gcs
+        self.extra_out = extra_out
 
     def init_jsbsim(self):
         cmd = "JSBSim --realtime --suspend --nice --simulation-rate=1000 --logdirectivefile=data/flightgear.xml --script=%s" % self.script
@@ -354,8 +365,12 @@ class SensorHIL(object):
             #self.ac.update_state_test(20, 270*math.pi/180)
 
             # TODO should send fdm global pos data to gcs here
-            #m = mavutil.mavlink.MAVLink_heartbeat_message(0,0,0,0,0,0)
-            #self.gcs.write(m.get_msgbuf())
+            if self.extra_out:
+                m = mavlink.MAVLink_heartbeat_message(1,0,165,0,4,3)
+                #type 1 (fixedwing), autopilot 0 (generic),
+                #basemode 128 (armed) 32 (HIL) 4 (auto) 1 (custom),
+                #custom mode 0 (none), state 4 (active)
+            	self.extra_out.write(m.pack(self.extra_out.mav))
 
             if self.fg_enable:
                 try:
@@ -399,6 +414,21 @@ class SensorHIL(object):
 
         elif mtype == 'STATUSTEXT':
             print 'sys %d: %s' % (self.master.target_system, m.text)
+
+        elif self.extra_out:
+            if mtype == 'HIGHRES_IMU':
+                #TODO send real imu data on extra_out
+                pass
+
+            elif mtype == 'GPS_RAW_INT':
+                #TODO send real gps data on extra_out
+                pass
+
+            elif mtype == 'GLOBAL_POSITION_INT':
+                self.ac.send_global_position(self.extra_out.mav)
+
+            elif mtype == 'ATTITUDE':
+                self.ac.send_attitude(self.extra_out.mav)
 
         # handle waypoint messages
         self.wpm.process_msg(m)
@@ -494,5 +524,3 @@ class SensorHIL(object):
 
 if __name__ == "__main__":
     SensorHIL.command_line()
-
-# vim:ts=4:sw=4:expandtab

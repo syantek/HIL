@@ -101,6 +101,12 @@ class BasicAircraft(object):
             self.attack)
         self.gps.send_to_mav(mav)
 
+    def send_global_position(self, mav):
+        self.gps.send_position(mav)
+
+    def send_attitude(self, mav):
+        self.x.send_attitude(mav)
+
     def send_sensors(self, mav):
         t_now = time.time()
         if t_now - self.t_gps > self.gps_period:

@@ -56,9 +56,10 @@ class State(object):
                  p, q, r,
                  lat, lon, alt,
                  vN, vE, vD,
-                 xacc, yacc, zacc):
+                 xacc, yacc, zacc,
+		 phidot=0, thetadot=0, psidot=0):
         self.time = time
-        self.set_attitude(phi, theta, psi)
+        self.set_attitude(phi, theta, psi, phidot, thetadot, psidot)
         self.p = p
         self.q = q
         self.r = r
@@ -72,10 +73,13 @@ class State(object):
         self.yacc = yacc
         self.zacc = zacc
 
-    def set_attitude(self, phi, theta, psi):
+    def set_attitude(self, phi, theta, psi, phidot=0, thetadot=0, psidot=0):
         self.phi = phi
         self.theta = theta 
         self.psi = psi
+	self.phidot = phidot
+	self.thetadot = thetadot
+	self.psidot = psidot
         cosPhi = cos(phi)
         sinPhi = sin(phi)
         cosThe = cos(theta)
@@ -117,6 +121,10 @@ class State(object):
             print e
             print 'mav hil packet data exceeds int bounds?'
 
+    def send_attitude(self, mav):
+        mav.attitude_send(int(self.time),
+                              self.phi, self.theta, self.psi,
+                              self.phidot, self.thetadot, self.psidot)
 
     @classmethod
     def from_fdm(cls, fdm):

@@ -354,7 +354,7 @@ class SensorHIL(object):
             #self.ac.update_state_test(20, 270*math.pi/180)
 
             # TODO should send fdm global pos data to gcs here
-            #m = mavutil.mavlink.MAVLink_heartbeat_message(0,0,0,0,0,0)
+            #m = mavutil.mavlink.MAVLink_heartbeat_message(1,12,0,0,0,0)
             #self.gcs.write(m.get_msgbuf())
 
             if self.fg_enable:
@@ -494,5 +494,3 @@ class SensorHIL(object):
 
 if __name__ == "__main__":
     SensorHIL.command_line()
-
-# vim:ts=4:sw=4:expandtab
