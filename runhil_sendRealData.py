@@ -112,6 +112,7 @@ class SensorHIL(object):
         if gcs_dev is not None:
             gcs = mavutil.mavudp(gcs_dev, input=False)
             print 'gcs connected on device: ', gcs_dev
+        self.extra_out = None
         if extra:
             try:
                 extra = int(extra)
@@ -121,12 +122,12 @@ class SensorHIL(object):
                                        source_system=extra)
             print 'Unmodified sensor output connected on device: ',\
                    gcs_dev, ' with vehicle ID ', extra
+            self.extra_out = extra_out
 
 
         # class data
         self.master = master
         self.gcs = gcs
-        self.extra_out = extra_out
 
     def init_jsbsim(self):
         cmd = "JSBSim --realtime --suspend --nice --simulation-rate=1000 --logdirectivefile=data/flightgear.xml --script=%s" % self.script
