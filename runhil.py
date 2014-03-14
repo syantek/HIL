@@ -310,7 +310,7 @@ class SensorHIL(object):
         self.jsb_console.send('resume\n')
         self.jsb_set('simulation/reset',1)
         self.update()
-        self.jsb.expect("\(Trim\) executed")
+        self.jsb.expect("\(Event 1\) executed at time")
         self.jsb_console.send('hold\n')
 
         print 'load waypoints'
